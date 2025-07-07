@@ -2340,9 +2340,9 @@ ParticleSystem:
   ringBufferMode: 0
   ringBufferLoopRange: {x: 0, y: 1}
   emitterVelocityMode: 1
-  looping: 1
+  looping: 0
   prewarm: 0
-  playOnAwake: 1
+  playOnAwake: 0
   useUnscaledTime: 0
   autoRandomSeed: 1
   startDelay:
@@ -2408,8 +2408,8 @@ ParticleSystem:
     startLifetime:
       serializedVersion: 2
       minMaxState: 3
-      scalar: 1
-      minScalar: 0.5
+      scalar: 0.2
+      minScalar: 0.1
       maxCurve:
         serializedVersion: 2
         m_Curve:
@@ -2518,8 +2518,8 @@ ParticleSystem:
       maxColor: {r: 1, g: 1, b: 1, a: 1}
       maxGradient:
         serializedVersion: 2
-        key0: {r: 0, g: 0.84539366, b: 1, a: 1}
-        key1: {r: 1, g: 1, b: 1, a: 1}
+        key0: {r: 0, g: 0.87894535, b: 1, a: 1}
+        key1: {r: 0, g: 0.13648272, b: 1, a: 1}
         key2: {r: 0, g: 0, b: 0, a: 0}
         key3: {r: 0, g: 0, b: 0, a: 0}
         key4: {r: 0, g: 0, b: 0, a: 0}
@@ -50812,7 +50812,7 @@ ParticleSystem:
   emitterVelocityMode: 1
   looping: 1
   prewarm: 0
-  playOnAwake: 1
+  playOnAwake: 0
   useUnscaledTime: 0
   autoRandomSeed: 1
   startDelay:
@@ -61201,17 +61201,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bc2af802231d55d468e533a1430d8731, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  jumpHeight: 20
-  jumpUpDuration: 0.5
-  jumpDownDuration: 0.3
-  maxJumpDistance: 10
+  maxJumpHeight: 25
+  jumpUpDuration: 1
+  jumpDownDuration: 0.4
+  jumpTarget: {fileID: 0}
+  jumpKey: 32
+  disableMovementDuringJump: 1
   landingImpactRadius: 3
   landingAnimationDuration: 2
   groundMask:
     serializedVersion: 2
     m_Bits: 128
   groundCheckDistance: 50
-  rotationSpeed: 5
   jumpCurve:
     serializedVersion: 2
     m_Curve:
@@ -61264,17 +61265,13 @@ MonoBehaviour:
   landingTrigger: Landing
   isInAirBool: IsInAir
   jumpEffect: {fileID: 0}
-  landingEffect: {fileID: 0}
+  landingEffect: {fileID: 124333678}
+  windTrail: {fileID: 1905615671}
   audioSource: {fileID: 0}
   jumpSound: {fileID: 0}
   landingSound: {fileID: 0}
   cameraShakeIntensity: 0.5
   cameraShakeDuration: 0.5
-  windCuttingEffect: {fileID: 1501507389}
-  enableWindEffect: 1
-  jumpKey: 32
-  requireDoubleClick: 0
-  doubleClickTime: 0.3
 --- !u!1 &2143265260
 GameObject:
   m_ObjectHideFlags: 0

@@ -6,11 +6,16 @@ using DG.Tweening;
 public class SuperheroJump : MonoBehaviour
 {
     [Header("Jump Settings")]
-    [SerializeField] private float jumpHeight = 15f;
+    [SerializeField] private float maxJumpHeight = 15f;
 
     [SerializeField] private float jumpUpDuration = 1f;
     [SerializeField] private float jumpDownDuration = 1.5f;
-    [SerializeField] private float maxJumpDistance = 20f;
+    [SerializeField] private Transform jumpTarget; // Target to fly to
+
+    [Header("Input")]
+    [SerializeField] private KeyCode jumpKey = KeyCode.Space;
+
+    [SerializeField] private bool disableMovementDuringJump = true;
 
     [Header("Landing Settings")]
     [SerializeField] private float landingImpactRadius = 5f;
@@ -20,9 +25,8 @@ public class SuperheroJump : MonoBehaviour
     [SerializeField] private float groundCheckDistance = 50f;
 
     [Header("Movement Control")]
-    [SerializeField] private float rotationSpeed = 5f;
-
     [SerializeField] private AnimationCurve jumpCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
+
     [SerializeField] private AnimationCurve landingCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
 
     [Header("Animation Parameters")]
@@ -35,16 +39,12 @@ public class SuperheroJump : MonoBehaviour
     [SerializeField] private ParticleSystem jumpEffect;
 
     [SerializeField] private ParticleSystem landingEffect;
+    [SerializeField] private ParticleSystem windTrail; // Wind trail particle system
     [SerializeField] private AudioSource audioSource;
     [SerializeField] private AudioClip jumpSound;
     [SerializeField] private AudioClip landingSound;
     [SerializeField] private float cameraShakeIntensity = 0.5f;
     [SerializeField] private float cameraShakeDuration = 0.3f;
-
-    [Header("Wind Cutting Effect")]
-    [SerializeField] private WindCuttingEffect windCuttingEffect;
-
-    [SerializeField] private bool enableWindEffect = true;
 
     private CharacterController controller;
     private MovementInput movementInput;
@@ -56,14 +56,6 @@ public class SuperheroJump : MonoBehaviour
     private bool isLanding = false;
     private Sequence jumpSequence;
 
-    // Input - FIXED: Set requireDoubleClick to false for single press
-    [Header("Input")]
-    [SerializeField] private KeyCode jumpKey = KeyCode.Space;
-
-    [SerializeField] private bool requireDoubleClick = false; // Changed from true to false
-    [SerializeField] private float doubleClickTime = 0.3f;
-    private float lastClickTime = 0f;
-
     private void Start()
     {
         controller = GetComponent<CharacterController>();
@@ -74,10 +66,10 @@ public class SuperheroJump : MonoBehaviour
         if (audioSource == null)
             audioSource = GetComponent<AudioSource>();
 
-        // FIXED: Ensure wind effects are stopped at start
-        if (windCuttingEffect != null)
+        // Ensure wind trail is stopped at start
+        if (windTrail != null)
         {
-            windCuttingEffect.StopWindCuttingEffect();
+            windTrail.Stop();
         }
     }
 
@@ -92,32 +84,17 @@ public class SuperheroJump : MonoBehaviour
 
         if (Input.GetKeyDown(jumpKey))
         {
-            if (requireDoubleClick)
-            {
-                float timeSinceLastClick = Time.time - lastClickTime;
-                if (timeSinceLastClick <= doubleClickTime)
-                {
-                    InitiateSuperheroJump();
-                }
-                lastClickTime = Time.time;
-            }
-            else
-            {
-                // FIXED: Direct jump for single press
-                InitiateSuperheroJump();
-            }
+            Debug.Log("Jump key pressed, initiating superhero jump.");
+            InitiateSuperheroJump();
         }
     }
 
     private void InitiateSuperheroJump()
     {
+        Debug.Log("Can Jump - " + CanJump());
         if (!CanJump()) return;
-
         Vector3 targetPosition = CalculateJumpTarget();
-        if (targetPosition != Vector3.zero)
-        {
-            StartSuperheroJump(targetPosition);
-        }
+        StartSuperheroJump(targetPosition);
     }
 
     private bool CanJump()
@@ -127,23 +104,14 @@ public class SuperheroJump : MonoBehaviour
 
     private Vector3 CalculateJumpTarget()
     {
-        Vector3 cameraForward = playerCamera.transform.forward;
-        cameraForward.y = 0;
-        cameraForward.Normalize();
-
-        Vector3 potentialTarget = transform.position + cameraForward * maxJumpDistance;
-
-        // Raycast to find ground
-        RaycastHit hit;
-        Vector3 rayStart = potentialTarget + Vector3.up * groundCheckDistance;
-
-        if (Physics.Raycast(rayStart, Vector3.down, out hit, groundCheckDistance * 2f, groundMask))
+        // If jump target is assigned, use it
+        if (jumpTarget != null)
         {
-            return hit.point;
+            return jumpTarget.position;
         }
 
-        // If no ground found, use default position
-        return potentialTarget;
+        // No target assigned, crash land at starting position
+        return transform.position;
     }
 
     private void StartSuperheroJump(Vector3 targetPosition)
@@ -152,17 +120,20 @@ public class SuperheroJump : MonoBehaviour
         jumpStartPosition = transform.position;
         jumpTargetPosition = targetPosition;
 
-        // Disable movement input during jump
-        if (movementInput != null)
+        // Disable movement input during jump if enabled
+        if (disableMovementDuringJump && movementInput != null)
             movementInput.enabled = false;
 
-        // Rotate towards target
-        Vector3 direction = (targetPosition - transform.position).normalized;
-        direction.y = 0;
-
-        if (direction != Vector3.zero)
+        // Rotate towards target if not crash landing
+        if (jumpTarget != null)
         {
-            transform.DORotateQuaternion(Quaternion.LookRotation(direction), 0.5f);
+            Vector3 direction = (targetPosition - transform.position).normalized;
+            direction.y = 0;
+
+            if (direction != Vector3.zero)
+            {
+                transform.DORotateQuaternion(Quaternion.LookRotation(direction), 0.5f);
+            }
         }
 
         // Play jump animation and sound
@@ -175,6 +146,12 @@ public class SuperheroJump : MonoBehaviour
         PlaySound(jumpSound);
         PlayEffect(jumpEffect);
 
+        // Start wind trail particle system
+        if (windTrail != null)
+        {
+            windTrail.Play();
+        }
+
         // Start jump sequence
         ExecuteJumpSequence();
     }
@@ -184,42 +161,36 @@ public class SuperheroJump : MonoBehaviour
         jumpSequence = DOTween.Sequence();
 
         // Calculate arc positions
-        Vector3 midPoint = Vector3.Lerp(jumpStartPosition, jumpTargetPosition, 0.5f);
-        midPoint.y = Mathf.Max(jumpStartPosition.y, jumpTargetPosition.y) + jumpHeight;
+        Vector3 midPoint;
 
-        // FIXED: Start wind effect only when jumping starts
-        if (enableWindEffect && windCuttingEffect != null)
+        if (jumpTarget != null)
         {
-            windCuttingEffect.StartWindCuttingEffect();
+            // Flying to target - create arc
+            midPoint = Vector3.Lerp(jumpStartPosition, jumpTargetPosition, 0.5f);
+            midPoint.y = Mathf.Max(jumpStartPosition.y, jumpTargetPosition.y) + maxJumpHeight;
+        }
+        else
+        {
+            // Crash landing - go straight up then down
+            midPoint = jumpStartPosition + Vector3.up * maxJumpHeight;
         }
 
-        // Create jump arc using DOTween
+        // Jump up phase
         jumpSequence.Append(
             transform.DOMove(midPoint, jumpUpDuration)
                 .SetEase(jumpCurve)
-                .OnUpdate(() =>
-                {
-                    // Update wind effect intensity based on upward progress
-                    if (windCuttingEffect != null)
-                    {
-                        float progress = jumpSequence.ElapsedPercentage();
-                        if (progress <= 0.5f) // Only during upward phase
-                        {
-                            windCuttingEffect.UpdateEffectIntensity(progress * 2f);
-                        }
-                    }
-                })
         );
 
+        // Jump down phase
         jumpSequence.Append(
             transform.DOMove(jumpTargetPosition, jumpDownDuration)
                 .SetEase(landingCurve)
                 .OnStart(() =>
                 {
-                    // Stop wind effect when starting downward phase
-                    if (windCuttingEffect != null)
+                    // Stop wind trail when starting descent
+                    if (windTrail != null)
                     {
-                        windCuttingEffect.StopWindCuttingEffect();
+                        windTrail.Stop();
                     }
                 })
         );
@@ -262,8 +233,8 @@ public class SuperheroJump : MonoBehaviour
     {
         isLanding = false;
 
-        // Re-enable movement
-        if (movementInput != null)
+        // Re-enable movement if it was disabled
+        if (disableMovementDuringJump && movementInput != null)
             movementInput.enabled = true;
     }
 
@@ -310,16 +281,16 @@ public class SuperheroJump : MonoBehaviour
             jumpSequence.Kill();
         }
 
-        // Stop wind effect if active
-        if (windCuttingEffect != null)
+        // Stop wind trail if active
+        if (windTrail != null)
         {
-            windCuttingEffect.StopWindCuttingEffect();
+            windTrail.Stop();
         }
 
         isJumping = false;
         isLanding = false;
 
-        if (movementInput != null)
+        if (disableMovementDuringJump && movementInput != null)
             movementInput.enabled = true;
 
         if (animator != null)
@@ -332,19 +303,16 @@ public class SuperheroJump : MonoBehaviour
     private void OnDrawGizmosSelected()
     {
         // Draw jump target
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(jumpTargetPosition, 1f);
-
-        // Draw max jump distance
-        Gizmos.color = Color.yellow;
-        if (playerCamera != null)
+        if (jumpTarget != null)
         {
-            Vector3 forward = playerCamera.transform.forward;
-            forward.y = 0;
-            forward.Normalize();
-            Vector3 maxTarget = transform.position + forward * maxJumpDistance;
-            Gizmos.DrawWireSphere(maxTarget, 0.5f);
-            Gizmos.DrawLine(transform.position, maxTarget);
+            Gizmos.color = Color.green;
+            Gizmos.DrawWireSphere(jumpTarget.position, 1f);
+            Gizmos.DrawLine(transform.position, jumpTarget.position);
+        }
+        else
+        {
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireSphere(transform.position + Vector3.up * maxJumpHeight, 1f);
         }
 
         // Draw landing impact radius
@@ -352,7 +320,7 @@ public class SuperheroJump : MonoBehaviour
         Gizmos.DrawWireSphere(transform.position, landingImpactRadius);
 
         // Draw ground check
-        Gizmos.color = Color.green;
+        Gizmos.color = Color.yellow;
         Vector3 checkStart = transform.position + Vector3.up * groundCheckDistance;
         Gizmos.DrawLine(checkStart, checkStart + Vector3.down * groundCheckDistance * 2f);
     }
