@@ -32,6 +32,8 @@ public class BuildingRaycastManager : MonoBehaviour
     public RaycastHit CurrentHit => currentHit;
     public bool IsHittingBuilding => isHittingBuilding;
 
+    public CharacterSkinController characterSkinController;
+
     private void Start()
     {
         // Get camera if not assigned
@@ -76,10 +78,11 @@ public class BuildingRaycastManager : MonoBehaviour
                 {
                     currentBuilding = hitBuilding;
                     OnBuildingHit?.Invoke(hitBuilding);
-
+                    currentBuilding.OnInteract();
+                    characterSkinController?.ChangeMaterialSettings(hitBuilding.GetResumeSection().index);
                     if (showDebugRays)
                     {
-                        Debug.Log($"Building Hit: {hitBuilding.houseName} | Distance: {hit.distance:F2}m");
+                        Debug.Log($"Building Hit: {hitBuilding.GetResumeSection().title} | Distance: {hit.distance:F2}m");
                     }
                 }
             }
@@ -100,6 +103,7 @@ public class BuildingRaycastManager : MonoBehaviour
     {
         if (isHittingBuilding)
         {
+            currentBuilding?.OnInteractionLost();
             isHittingBuilding = false;
             currentBuilding = null;
             OnBuildingLost?.Invoke();

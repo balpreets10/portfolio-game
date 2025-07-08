@@ -33,6 +33,8 @@ public class ResumeBoardLandingDOTween : MonoBehaviour
 
     public static event Action OnBoardLanded;
 
+    public static event Action OnBoardSentBack;
+
     public List<TypeWriterEffect> typewriters;
 
     public UnityEvent OnBoardLand;
@@ -67,17 +69,25 @@ public class ResumeBoardLandingDOTween : MonoBehaviour
                 effect.StopTypewriter();
             }
             isRead = true;
+            OnBoardSentBack.Invoke();
         });
     }
 
     private void OnEnable()
     {
         Gate.OnGateExit += OnGateExit;
+        BuildingRaycastManager.OnBuildingHit += OnBuildingHit;
     }
 
     private void OnDisable()
     {
         Gate.OnGateExit -= OnGateExit;
+        BuildingRaycastManager.OnBuildingHit -= OnBuildingHit;
+    }
+
+    private void OnBuildingHit(SectionHouse house)
+    {
+        if (!isRead) SendBoardBack();
     }
 
     private void OnGateExit()
@@ -169,7 +179,7 @@ public class ResumeBoardLandingDOTween : MonoBehaviour
     {
         Vector3 originalScale = transform.localScale;
 
-        Sequence bounceSequence = DOTween.Sequence();
+        DG.Tweening.Sequence bounceSequence = DOTween.Sequence();
 
         // Initial squash
         bounceSequence.Append(transform.DOScale(

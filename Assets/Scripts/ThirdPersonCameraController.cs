@@ -38,15 +38,6 @@ public class ThirdPersonCameraController : MonoBehaviour
     public LayerMask interactableMask = 1;
     public KeyCode interactionKey = KeyCode.E;
 
-    [Header("UI References")]
-    public GameObject interactionPrompt;
-
-    public TextMeshProUGUI interactionText;
-    public GameObject resumePanel;
-    public TextMeshProUGUI resumeContentText;
-    public TextMeshProUGUI resumeTitleText;
-    public Button closeButton;
-
     [Header("Audio")]
     public AudioClip interactionSound;
 
@@ -66,13 +57,11 @@ public class ThirdPersonCameraController : MonoBehaviour
     private bool interactPressed;
     private IInteractable currentInteractable;
 
-    private bool enabled = false;
+    private bool enabledInitially = false;
 
     private void Start()
     {
         cam = GetComponent<Camera>();
-        SetupUI();
-
         if (cam == null)
         {
             cam = Camera.main;
@@ -107,62 +96,16 @@ public class ThirdPersonCameraController : MonoBehaviour
     private void Update()
     {
         if (player == null) return;
-        if (!enabled && Input.GetMouseButtonUp(0))
+        if (!enabledInitially && Input.GetMouseButtonUp(0))
         {
-            enabled = true;
+            enabledInitially = true;
         }
-        if (enabled)
+        if (enabledInitially)
         {
             HandleInput();
             HandleMouseLook();
-            HandleInteraction();
             HandleCameraMovement();
             HandlePlayerRotation();
-        }
-    }
-
-    private void SetupUI()
-    {
-        if (interactionPrompt != null)
-            interactionPrompt.SetActive(false);
-
-        if (resumePanel != null)
-        {
-            resumePanel.SetActive(false);
-            if (closeButton != null)
-                closeButton.onClick.AddListener(CloseResumePanel);
-        }
-    }
-
-    private void ShowResumePanel(Section section)
-    {
-        if (resumePanel != null)
-        {
-            isInteracting = true;
-            resumePanel.SetActive(true);
-
-            if (resumeTitleText != null)
-                resumeTitleText.text = section.title;
-
-            if (resumeContentText != null)
-                resumeContentText.text = section.content;
-
-            // Show cursor for UI interaction
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-        }
-    }
-
-    private void CloseResumePanel()
-    {
-        if (resumePanel != null)
-        {
-            isInteracting = false;
-            resumePanel.SetActive(false);
-
-            // Hide cursor
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
         }
     }
 
@@ -265,75 +208,6 @@ public class ThirdPersonCameraController : MonoBehaviour
         return desiredPosition;
     }
 
-    private void HandleInteraction()
-    {
-        // Raycast for interactables
-        Ray ray = new Ray(cam.transform.position, cam.transform.forward);
-        RaycastHit hit;
-
-        if (Physics.Raycast(ray, out hit, interactionRange, interactableMask))
-        {
-            IInteractable interactable = hit.collider.GetComponent<IInteractable>();
-
-            if (interactable != null)
-            {
-                // Show interaction prompt
-                if (currentInteractable != interactable)
-                {
-                    currentInteractable = interactable;
-                    ShowInteractionPrompt(interactable.GetInteractionText());
-                }
-
-                // Handle interaction input
-                if (interactPressed)
-                {
-                    StartInteraction(interactable);
-                }
-            }
-        }
-        else
-        {
-            // Hide interaction prompt
-            if (currentInteractable != null)
-            {
-                currentInteractable = null;
-                HideInteractionPrompt();
-            }
-        }
-    }
-
-    private void ShowInteractionPrompt(string text)
-    {
-        if (interactionPrompt != null)
-        {
-            interactionPrompt.SetActive(true);
-            if (interactionText != null)
-            {
-                interactionText.text = $"Press {interactionKey} to {text}";
-            }
-        }
-    }
-
-    private void HideInteractionPrompt()
-    {
-        if (interactionPrompt != null)
-        {
-            interactionPrompt.SetActive(false);
-        }
-    }
-
-    private void StartInteraction(IInteractable interactable)
-    {
-        // Get resume section data
-        Section section = interactable.GetResumeSection();
-        if (section != null)
-        {
-            ShowResumePanel(section);
-        }
-
-        interactable.OnInteract();
-    }
-
     // Public methods for external control
     public void SetPlayer(Transform newPlayer)
     {
@@ -429,6 +303,8 @@ public interface IInteractable
     string GetInteractionText();
 
     void OnInteract();
+
+    void OnInteractionLost();
 
     Section GetResumeSection();
 }

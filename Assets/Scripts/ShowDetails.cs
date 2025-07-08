@@ -15,6 +15,8 @@ public class ShowDetails : MonoBehaviour
 
     public RectTransform panel;
 
+    private bool OnBoardOut = false;
+
     private void Start()
     {
         ManagePanel(false);
@@ -24,26 +26,34 @@ public class ShowDetails : MonoBehaviour
     private void OnEnable()
     {
         BuildingRaycastManager.OnBuildingHit += OnBuildingHit;
+        BuildingRaycastManager.OnBuildingLost += OnBuildingLost;
         ResumeBoardLandingDOTween.OnBoardLanded += OnBoardLanded;
+        ResumeBoardLandingDOTween.OnBoardSentBack += OnBoardSentBack;
     }
 
     private void OnDisable()
     {
         BuildingRaycastManager.OnBuildingHit -= OnBuildingHit;
+        BuildingRaycastManager.OnBuildingLost -= OnBuildingLost;
         ResumeBoardLandingDOTween.OnBoardLanded -= OnBoardLanded;
+        ResumeBoardLandingDOTween.OnBoardSentBack -= OnBoardSentBack;
     }
 
-    private void Update()
+    private void OnBuildingLost()
     {
-        if (Input.GetMouseButtonUp(0))
-        {
-        }
+        DeactivateContextText();
+    }
+
+    private void OnBoardSentBack()
+    {
+        DeactivateContextText();
     }
 
     private void OnBoardLanded()
     {
         Debug.Log("Board landed, showing context text.");
         ActivateContextText("Press E to continue");
+        OnBoardOut = false;
     }
 
     private void ActivateContextText(string text)
@@ -60,9 +70,7 @@ public class ShowDetails : MonoBehaviour
 
     private void OnBuildingHit(SectionHouse house)
     {
-        ManagePanel(false);
-        SetText(house.resumeSection.title, house.resumeSection.content);
-        Activate();
+        ActivateContextText("Press E to check " + house.GetResumeSection().title);
     }
 
     public void SetText(string title, string Description)

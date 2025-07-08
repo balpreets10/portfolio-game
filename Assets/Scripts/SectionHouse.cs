@@ -1,52 +1,59 @@
 // Data structure for resume sections
 using System.Collections;
 
+using DG.Tweening;
+
 using UnityEngine;
-
-[System.Serializable]
-public class Section
-{
-    public string title;
-    public Transform target;
-
-    [TextArea(5, 10)]
-    public string content;
-
-    public Sprite icon;
-    public Color themeColor = Color.white;
-}
 
 // Example interactable object
 public class SectionHouse : MonoBehaviour, IInteractable
 {
     [Header("House Settings")]
-    public string houseName = "Experience";
-
-    public Section resumeSection;
+    [SerializeField] private Section resumeSection;
 
     [Header("Visual Effects")]
-    public GameObject highlightEffect;
+    public Renderer myRenderer;
 
-    public Light houseLight;
+    public Transform Ground;
+    public Transform LightTarget;
+
+    private Tweener outlineTweener;
+    private Tweener colorTweener;
+
+    private void Start()
+    {
+        if (myRenderer == null) myRenderer = GetComponent<Renderer>();
+        myRenderer.material.color = resumeSection.defaultColor;
+        myRenderer.material.SetFloat("_OutlineWidth", 0f);
+    }
 
     public string GetInteractionText()
     {
-        return $"view {houseName}";
+        return $"view {resumeSection.title}";
     }
 
     public void OnInteract()
     {
         // Add any house-specific interaction effects
-        if (highlightEffect != null)
-        {
-            highlightEffect.SetActive(true);
-            StartCoroutine(DisableHighlightAfterDelay(2f));
-        }
+        KillColorTweener();
+        KillOutlineTweener();
 
-        if (houseLight != null)
+        colorTweener = myRenderer.material.DOColor(resumeSection.themeColor, .5f).SetAutoKill(true).SetEase(Ease.InOutQuad).OnComplete(() =>
         {
-            houseLight.intensity = Mathf.Min(houseLight.intensity * 1.5f, 3f);
-        }
+            colorTweener = null;
+        });
+        outlineTweener = myRenderer.material.DOFloat(resumeSection.outlineWidth, "_OutlineWidth", .5f).SetAutoKill(true).OnComplete(() =>
+        {
+            outlineTweener = null;
+        });
+    }
+
+    public void OnInteractionLost()
+    {
+        KillColorTweener();
+        KillOutlineTweener();
+        colorTweener = myRenderer.material.DOColor(resumeSection.defaultColor, .2f).SetEase(Ease.InOutQuad).SetAutoKill(true).OnComplete(() => { colorTweener = null; });
+        outlineTweener = myRenderer.material.DOFloat(resumeSection.defaultOutlineWidth, "_OutlineWidth", .2f).SetAutoKill(true).OnComplete(() => { outlineTweener = null; });
     }
 
     public Section GetResumeSection()
@@ -54,33 +61,30 @@ public class SectionHouse : MonoBehaviour, IInteractable
         return resumeSection;
     }
 
-    private IEnumerator DisableHighlightAfterDelay(float delay)
+    private void KillOutlineTweener()
     {
-        yield return new WaitForSeconds(delay);
-        if (highlightEffect != null)
-            highlightEffect.SetActive(false);
+        if (outlineTweener != null)
+            outlineTweener.Kill();
+        outlineTweener = null;
     }
 
-    private void OnTriggerEnter(Collider other)
+    private void KillColorTweener()
     {
-        if (other.CompareTag("Player"))
-        {
-            // Optional: Add ambient effects when player approaches
-            if (houseLight != null)
-            {
-                houseLight.intensity = 1.2f;
-            }
-        }
+        if (colorTweener != null)
+            colorTweener.Kill();
+        colorTweener = null;
     }
+}
 
-    private void OnTriggerExit(Collider other)
-    {
-        if (other.CompareTag("Player"))
-        {
-            if (houseLight != null)
-            {
-                houseLight.intensity = 0.8f;
-            }
-        }
-    }
+[System.Serializable]
+public class Section
+{
+    public string title;
+    public Transform target;
+    public int index;
+
+    public Color themeColor = Color.white;
+    public Color defaultColor = Color.white;
+    public float outlineWidth = 0.14f; // Highlight outline width
+    public float defaultOutlineWidth = 0f; // Base outline width
 }
