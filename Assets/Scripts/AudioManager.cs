@@ -46,6 +46,7 @@ namespace Ludo
         private bool vibrationOn;
 
         public AudioClip landSound;
+        private bool isLoadingComplete = false;
 
         private void Awake()
         {
@@ -67,7 +68,6 @@ namespace Ludo
         private void Start()
         {
             Initialize();
-            //PlayBg();
         }
 
         public void Initialize()
@@ -148,7 +148,10 @@ namespace Ludo
 
         public void PlayBg()
         {
-            bgSource?.Play();
+            if (!bgSource.isPlaying)
+            {
+                bgSource?.Play();
+            }
         }
 
         public void PauseBg()
@@ -217,24 +220,24 @@ namespace Ludo
         private void OnEnable()
         {
             ResumeBoardLandingDOTween.OnBoardLanded += OnBoardLanded;
+            SplashScreen.OnLoadingComplete += OnLoadingComplete;
         }
 
         private void OnDisable()
         {
             ResumeBoardLandingDOTween.OnBoardLanded -= OnBoardLanded;
+            SplashScreen.OnLoadingComplete -= OnLoadingComplete;
+        }
+
+        private void OnLoadingComplete()
+        {
+            isLoadingComplete = true;
+            PlayBg();
         }
 
         private void OnBoardLanded()
         {
             Play(landSound);
-        }
-
-        private void OnGateExit()
-        {
-            if (!bgSource.isPlaying)
-            {
-                //PlayBg();
-            }
         }
 
         private void OnApplicationQuit()
@@ -244,16 +247,22 @@ namespace Ludo
 
         private void OnApplicationFocus(bool hasFocus)
         {
+            if (!hasFocus)
+                bgSource?.Pause();
+            else
+            {
+                if (isLoadingComplete)
+                {
+                    PlayBg();
+                }
+            }
         }
 
         private void Update()
         {
             if (Input.GetMouseButtonUp(0))
             {
-                if (!bgSource.isPlaying)
-                {
-                    PlayBg();
-                }
+                PlayBg();
             }
         }
     }

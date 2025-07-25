@@ -141,14 +141,14 @@ Material:
     - _WorkflowMode: 1
     - _ZWrite: 1
     m_Colors:
-    - _AutumnColor: {r: 0.91823894, g: 0.8489378, b: 0.52264535, a: 1}
+    - _AutumnColor: {r: 0.9496855, g: 0.86506003, b: 0.47484264, a: 1}
     - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
     - _Color: {r: 1, g: 0.9708446, b: 0.66352195, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _SpecColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
-    - _SpringColor: {r: 0.9496855, g: 0.73683727, b: 0.71375734, a: 1}
-    - _SummerColor: {r: 0.6468889, g: 0.9308176, b: 0.6468889, a: 1}
+    - _SpringColor: {r: 1, g: 0.5103773, b: 0.45597476, a: 1}
+    - _SummerColor: {r: 0.550077, g: 0.7987421, b: 0.550077, a: 1}
     - _TrailColor: {r: 1, g: 1, b: 0, a: 1}
-    - _WinterColor: {r: 0.6176179, g: 0.88940275, b: 0.9308176, a: 1}
+    - _WinterColor: {r: 1, g: 0.43710685, b: 0.89259744, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

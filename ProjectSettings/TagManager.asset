@@ -5,6 +5,7 @@ TagManager:
   serializedVersion: 3
   tags:
   - PlayerEyes
+  - CameraControlArea
   layers:
   - Default
   - TransparentFX
@@ -12,9 +13,9 @@ TagManager:
   - 
   - Water
   - UI
-  - Building
+  - Interactable
   - Ground
-  - 
+  - Sky
   - 
   - 
   - 

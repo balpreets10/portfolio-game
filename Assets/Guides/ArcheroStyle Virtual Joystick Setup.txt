@@ -1,0 +1,134 @@
+# Archero-Style Virtual Joystick Setup Guide
+
+## Overview
+This guide will help you implement an Archero-style virtual joystick for mobile platforms while maintaining PC keyboard support.
+
+## Step 1: Create the UI Canvas
+
+1. **Create a Canvas** in your scene:
+   - Right-click in Hierarchy → UI → Canvas
+   - Set Canvas Scaler to "Scale With Screen Size"
+   - Set Reference Resolution to 1920x1080 (or your target resolution)
+
+2. **Create Joystick Container**:
+   - Right-click Canvas → UI → Empty (name it "JoystickContainer")
+   - Set anchors to bottom-left (0, 0, 0, 0)
+   - Position it where you want the joystick to appear
+
+## Step 2: Create Joystick UI Elements
+
+1. **Joystick Background**:
+   - Right-click JoystickContainer → UI → Image (name it "JoystickBackground")
+   - Set Source Image to a circular joystick background sprite
+   - Set size to 200x200 (adjust as needed)
+   - Set color to semi-transparent white (255, 255, 255, 100)
+
+2. **Joystick Handle**:
+   - Right-click JoystickBackground → UI → Image (name it "JoystickHandle")
+   - Set Source Image to a smaller circular handle sprite
+   - Set size to 80x80 (adjust as needed)
+   - Set color to white or your preferred color
+   - Position at center of background
+
+## Step 3: Setup the Virtual Joystick Script
+
+1. **Add VirtualJoystick Script**:
+   - Attach the `VirtualJoystick.cs` script to the JoystickContainer
+   - In the inspector, assign:
+     - **Joystick Background**: The JoystickBackground RectTransform
+     - **Joystick Handle**: The JoystickHandle RectTransform
+     - **Joystick Range**: 100 (half of background size)
+     - **Hide On Release**: true (for Archero-style behavior)
+
+2. **Configure Touch Area**:
+   - The JoystickContainer should have a large area to detect touches
+   - Resize it to cover the desired touch area (e.g., left half of screen)
+   - The joystick will appear wherever you touch within this area
+
+## Step 4: Setup Character Movement
+
+1. **Replace Movement Script**:
+   - Remove the old `MovementInput.cs` from your character
+   - Add the new `EnhancedMovementInput.cs` script
+
+2. **Configure Enhanced Movement**:
+   - Assign all the same fields as your original script
+   - In the **Mobile Controls** section:
+     - **Virtual Joystick**: Drag the JoystickContainer here
+     - **Use Mobile Controls**: Will auto-detect platform, but you can override
+
+## Step 5: Platform-Specific Setup
+
+### For Mobile Builds:
+- The script will automatically detect mobile platforms
+- Ensure the joystick UI is properly scaled for different screen sizes
+- Test on actual devices for proper touch responsiveness
+
+### For PC Builds:
+- The script will use keyboard input (WASD/Arrow keys)
+- The joystick UI will be hidden automatically
+- Mouse click still enables movement as before
+
+## Step 6: Advanced Customization
+
+### Joystick Appearance:
+- Create custom sprites for background and handle
+- Adjust colors and transparency in the Image components
+- Consider adding a subtle pulse animation when touched
+
+### Touch Sensitivity:
+- Modify `joystickRange` in VirtualJoystick for different sensitivity
+- Adjust `allowPlayerRotation` in movement script for dead zone
+
+### Visual Feedback:
+- Add scale animations when joystick is pressed/released
+- Implement haptic feedback for mobile devices
+- Add particle effects for enhanced visual appeal
+
+## Step 7: Testing
+
+1. **In Editor**:
+   - Test with both mouse and touch simulation
+   - Use Unity Remote for real device testing
+
+2. **Build Testing**:
+   - Test on actual mobile devices
+   - Verify proper scaling on different screen sizes
+   - Test PC build to ensure keyboard still works
+
+## Code Structure
+
+```
+Scene Hierarchy:
+├── Canvas
+│   ├── JoystickContainer (VirtualJoystick.cs)
+│   │   ├── JoystickBackground (Image)
+│   │   └── JoystickHandle (Image)
+│   └── Other UI elements...
+├── Player (EnhancedMovementInput.cs)
+└── Other game objects...
+```
+
+## Tips for Archero-Style Feel
+
+1. **Joystick Behavior**:
+   - Set `hideOnRelease = true` for joystick that appears on touch
+   - Use smooth interpolation for handle movement
+   - Consider adding a slight delay before hiding
+
+2. **Movement Feel**:
+   - Adjust `desiredRotationSpeed` for responsive character turning
+   - Fine-tune `Velocity` for appropriate movement speed
+   - Consider different speeds for different input magnitudes
+
+3. **Visual Polish**:
+   - Add subtle animations for joystick appearance/disappearance
+   - Use consistent visual style with your game's UI
+   - Consider semi-transparent backgrounds for better visibility
+
+## Troubleshooting
+
+- **Joystick not responding**: Check that the Canvas has a GraphicRaycaster component
+- **Wrong touch area**: Ensure JoystickContainer covers the desired touch area
+- **Scaling issues**: Verify Canvas Scaler settings match your target resolution
+- **Animation not working**: Ensure Animator parameters match the script expectations

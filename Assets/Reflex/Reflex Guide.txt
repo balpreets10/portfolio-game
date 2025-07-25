@@ -1,0 +1,337 @@
+# Reflex Dependency Injection Setup Guide for Unity 6
+
+## Overview
+Reflex is a blazing fast, minimal dependency injection framework for Unity that provides better separation of concerns and follows SOLID principles. It's up to 414% faster than VContainer and 800% faster than Zenject.
+
+## Step 1: Installation
+
+### Method 1: Git URL (Recommended)
+1. Open Unity and go to **Window → Package Manager**
+2. Click the **+** button and select **"Add package from git URL..."**
+3. Enter this URL: `https://github.com/gustavopsantos/reflex.git?path=/Assets/Reflex/#10.1.0`
+4. Click **Add**
+
+### Method 2: OpenUPM
+```bash
+openupm install com.gustavopsantos.reflex
+```
+
+### Method 3: Unity Package
+1. Download the `.unitypackage` from the [releases page](https://github.com/gustavopsantos/reflex/releases)
+2. Import the package into your project
+
+## Step 2: Create Project Structure
+
+### 2.1 Create Resources Folder
+- Create a `Assets/Resources` folder in your project (if it doesn't exist)
+
+### 2.2 Create ReflexSettings
+1. Right-click on the `Resources` folder
+2. Select **Create → Reflex → Settings**
+3. This creates a `ReflexSettings.asset` file
+
+**⚠️ Important**: ReflexSettings MUST be inside the Resources folder and is mandatory for Reflex to work.
+
+## Step 3: Create Project Scope
+
+### 3.1 Create ProjectScope Prefab
+1. Right-click in any folder in your project
+2. Select **Create → Reflex → ProjectScope**
+3. Name it something like `ProjectScope`
+
+### 3.2 Create ProjectInstaller
+Create a new script called `ProjectInstaller.cs`:
+
+```csharp
+using Reflex.Core;
+using UnityEngine;
+
+public class ProjectInstaller : MonoBehaviour, IInstaller
+{
+    public void InstallBindings(ContainerBuilder builder)
+    {
+        // Correct binding syntax for interface -> implementation
+        builder.AddSingleton(typeof(IPlatformDetector), typeof(PlatformDetector));
+        
+        // For multiple contracts, use this syntax:
+        builder.AddSingleton(typeof(PlatformDetector), typeof(IPlatformDetector), typeof(PlatformDetector));
+        
+        // Or bind concrete type directly:
+        builder.AddSingleton(typeof(PlatformDetector));
+        
+        // String binding example
+        builder.AddSingleton("ProjectMessage");
+    }
+}
+```
+
+### 3.3 Configure ProjectScope
+1. Select your `ProjectScope` prefab
+2. Add the `ProjectInstaller` component to it
+3. Go to `ReflexSettings.asset` and add the `ProjectScope` prefab to the **ProjectScopes** list
+
+## Step 4: Create Scene Scope
+
+### 4.1 In Your Scene
+1. Create an empty GameObject in your scene
+2. Name it `SceneScope`
+3. Add the `SceneScope` component to it
+4. Place it as a root GameObject in your scene hierarchy
+
+### 4.2 Create SceneInstaller
+Create a script for scene-specific dependencies:
+
+```csharp
+using Reflex.Core;
+using UnityEngine;
+
+public class GameSceneInstaller : MonoBehaviour, IInstaller
+{
+    public void InstallBindings(ContainerBuilder builder)
+    {
+        // Register scene-specific dependencies
+        builder.AddSingleton<IEnemySpawner, EnemySpawner>();
+        builder.AddTransient<IProjectile, Projectile>();
+        builder.AddSingleton("SceneMessage"); // Example string binding
+    }
+}
+```
+
+### 4.3 Configure SceneScope
+1. Select your `SceneScope` GameObject
+2. Add your `GameSceneInstaller` component to it
+
+## Step 5: Create Injectable Classes
+
+### 5.1 Interface Examples
+```csharp
+public interface IGameManager
+{
+    void StartGame();
+    void EndGame();
+}
+
+public interface IPlayerData
+{
+    int Score { get; set; }
+    string PlayerName { get; set; }
+}
+
+public interface IEnemySpawner
+{
+    void SpawnEnemy(Vector3 position);
+}
+```
+
+### 5.2 Implementation Examples
+```csharp
+using UnityEngine;
+
+public class GameManager : IGameManager
+{
+    private readonly IPlayerData _playerData;
+    
+    // Constructor injection for non-MonoBehaviour classes
+    public GameManager(IPlayerData playerData)
+    {
+        _playerData = playerData;
+    }
+    
+    public void StartGame()
+    {
+        Debug.Log($"Game started for player: {_playerData.PlayerName}");
+    }
+    
+    public void EndGame()
+    {
+        Debug.Log($"Game ended. Final score: {_playerData.Score}");
+    }
+}
+
+public class PlayerData : IPlayerData
+{
+    public int Score { get; set; }
+    public string PlayerName { get; set; } = "Player";
+}
+```
+
+## Step 6: Using Dependency Injection
+
+### 6.1 In MonoBehaviour (Attribute Injection)
+```csharp
+using UnityEngine;
+using Reflex.Attributes;
+using System.Collections.Generic;
+
+public class GameController : MonoBehaviour
+{
+    [Inject] private readonly IGameManager _gameManager;
+    [Inject] private readonly IPlayerData _playerData;
+    [Inject] private readonly IEnemySpawner _enemySpawner;
+    
+    // You can also inject collections
+    [Inject] private readonly IEnumerable<string> _messages;
+    
+    // Property injection
+    [Inject] public IGameManager GameManager { get; private set; }
+    
+    // Method injection
+    [Inject]
+    private void Initialize(IGameManager gameManager, IPlayerData playerData)
+    {
+        // Method name doesn't matter
+        Debug.Log("Dependencies injected via method");
+    }
+    
+    private void Start()
+    {
+        _gameManager.StartGame();
+        Debug.Log($"All messages: {string.Join(", ", _messages)}");
+    }
+}
+```
+
+### 6.2 In Non-MonoBehaviour Classes (Constructor Injection)
+```csharp
+public class WeaponSystem
+{
+    private readonly IPlayerData _playerData;
+    private readonly IGameManager _gameManager;
+    
+    public WeaponSystem(IPlayerData playerData, IGameManager gameManager)
+    {
+        _playerData = playerData;
+        _gameManager = gameManager;
+    }
+    
+    public void FireWeapon()
+    {
+        // Use injected dependencies
+        Debug.Log($"Weapon fired by {_playerData.PlayerName}");
+    }
+}
+```
+
+## Step 7: Advanced Features
+
+### 7.1 Manual Injection for Runtime Objects
+```csharp
+using Reflex.Injectors;
+using UnityEngine;
+
+public class ObjectSpawner : MonoBehaviour
+{
+    [Inject] private Container _container;
+    
+    public void SpawnObject()
+    {
+        // For GameObjects created at runtime
+        GameObject newObj = Instantiate(somePrefab);
+        GameObjectInjector.InjectRecursive(newObj, _container);
+        
+        // For regular objects
+        var newService = ConstructorInjector.Construct(typeof(WeaponSystem), _container);
+    }
+}
+```
+
+### 7.2 Scoped Containers
+```csharp
+using (var scopedContainer = parentContainer.Scope(builder =>
+{
+    builder.AddSingleton<ITemporaryService, TemporaryService>();
+}))
+{
+    // Use scoped container
+    var service = scopedContainer.Resolve<ITemporaryService>();
+}
+```
+
+### 7.3 Different Binding Types
+```csharp
+public void InstallBindings(ContainerBuilder builder)
+{
+    // Singleton - Same instance always returned
+    builder.AddSingleton<IGameManager, GameManager>();
+    
+    // Transient - New instance every time
+    builder.AddTransient<IProjectile, Projectile>();
+    
+    // Scoped - One instance per container
+    builder.AddScoped<ISessionData, SessionData>();
+    
+    // Instance binding - Pre-created object
+    builder.AddSingleton(new PlayerData { PlayerName = "TestPlayer" });
+    
+    // Factory binding
+    builder.AddSingleton<IComplexService>(container => 
+        new ComplexService(container.Resolve<IDependency>()));
+}
+```
+
+## Step 8: Debugging
+
+### 8.1 Enable Debug Mode
+1. Go to **Edit → Project Settings → Player**
+2. In **Other Settings**, scroll to **Script Compilation → Scripting Define Symbols**
+3. Add `REFLEX_DEBUG`
+
+### 8.2 Use Reflex Debugger
+1. Open **Window → Analysis → Reflex Debugger** (or Ctrl+E)
+2. Click the bug button to easily enable debug mode
+3. Inspect container hierarchy, bindings, and resolution counts
+
+## Step 9: Best Practices
+
+### 9.1 Container Hierarchy
+- Project Container: Global services (GameManager, PlayerData, etc.)
+- Scene Container: Scene-specific services (EnemySpawner, UI managers, etc.)
+
+### 9.2 Binding Guidelines
+- Use interfaces for better testability
+- Prefer constructor injection for non-MonoBehaviours
+- Use attribute injection for MonoBehaviours
+- Register the most specific contracts first
+
+### 9.3 Performance Tips
+- Use Singleton for services that should have one instance
+- Use Transient sparingly (creates new instances each time)
+- Consider using Scoped for services that need one instance per container
+
+## Step 10: IL2CPP Considerations
+
+If building for IL2CPP and using `IEnumerable<T>` injection, add this workaround:
+
+```csharp
+using System;
+using System.Linq;
+using UnityEngine.Scripting;
+
+public class SomeManager
+{
+    public SomeManager(IEnumerable<int> numbers)
+    {
+        // Your code here
+    }
+    
+    [Preserve]
+    private static void UsedOnlyForAOTCodeGeneration()
+    {
+        Array.Empty<object>().Cast<int>(); // Prevents AOT issues
+        throw new Exception("This method is used for AOT code generation only. Do not call it at runtime.");
+    }
+}
+```
+
+## Conclusion
+
+Reflex provides a powerful yet simple dependency injection system for Unity. The key points to remember:
+
+1. **ReflexSettings** must be in Resources folder
+2. **ProjectScope** handles project-wide dependencies
+3. **SceneScope** handles scene-specific dependencies
+4. Use **[Inject]** attribute for MonoBehaviours
+5. Use **constructor injection** for regular classes
+6. Enable debug mode for development and debugging
+
+This setup will give you a solid foundation for dependency injection in your Unity 6 project with excellent performance and clean architecture.
