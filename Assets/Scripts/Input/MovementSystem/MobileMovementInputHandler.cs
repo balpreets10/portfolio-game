@@ -13,10 +13,11 @@ namespace Portfolio.InputSystem.Mobile
         [Header("Testing")]
         [SerializeField] private bool enableMouseEmulation = true;
 
-        // State management
-        private CommonInputState commonState = CommonInputState.None;
+        // State management - simplified
+        private bool isEnabled = false;
 
-        private MovementInputState movementState = MovementInputState.None;
+        private bool isInitialized = false;
+        private bool isInputActive = false;
 
         private Vector2 currentInput = Vector2.zero;
         private int activeTouchId = -1;
@@ -31,15 +32,15 @@ namespace Portfolio.InputSystem.Mobile
 
         public void Initialize()
         {
-            if (HasCommonFlag(CommonInputState.Initialized)) return;
+            if (isInitialized) return;
 
             virtualJoystick?.InitializeJoystick();
-            SetCommonFlag(CommonInputState.Initialized, true);
+            isInitialized = true;
         }
 
         public void UpdateInput()
         {
-            if (!HasCommonFlag(CommonInputState.Enabled | CommonInputState.Initialized)) return;
+            if (!isEnabled || !isInitialized) return;
 
             if (enableMouseEmulation && Application.isEditor)
                 ProcessMouseInput();
@@ -49,7 +50,7 @@ namespace Portfolio.InputSystem.Mobile
 
         public void SetEnabled(bool enabled)
         {
-            SetCommonFlag(CommonInputState.Enabled, enabled);
+            isEnabled = enabled;
 
             if (!enabled)
             {
@@ -60,42 +61,52 @@ namespace Portfolio.InputSystem.Mobile
 
         public bool IsInputActive()
         {
-            return HasCommonFlag(CommonInputState.Enabled | CommonInputState.Initialized | CommonInputState.InputActive);
+            return isEnabled && isInitialized && isInputActive;
         }
 
         public void Cleanup()
         {
             StopInput();
             OnMovementInput = null;
-            ResetState();
+            isEnabled = false;
+            isInitialized = false;
         }
 
         #region Touch Input Processing
 
         private void ProcessTouchInput()
         {
-            // Early exit if no touches
-            if (Input.touchCount == 0)
+            // Handle existing active touch first
+            if (activeTouchId != -1)
             {
-                if (HasCommonFlag(CommonInputState.InputActive))
+                bool foundActiveTouch = false;
+                for (int i = 0; i < Input.touchCount; i++)
                 {
-                    VerifyActiveTouchExists();
+                    Touch touch = Input.touches[i];
+                    if (touch.fingerId == activeTouchId)
+                    {
+                        foundActiveTouch = true;
+                        HandleActiveTouch(touch);
+                        break;
+                    }
                 }
-                return;
+
+                // If active touch not found, stop input
+                if (!foundActiveTouch)
+                {
+                    StopInput();
+                }
+                return; // Don't process new touches while one is active
             }
 
+            // Look for new touches on the left side
             for (int i = 0; i < Input.touchCount; i++)
             {
                 Touch touch = Input.touches[i];
-
-                if (touch.fingerId == activeTouchId)
+                if (touch.phase == TouchPhase.Began && IsLeftSideOfScreen(touch.position))
                 {
-                    HandleActiveTouch(touch);
-                    return; // Found our touch, exit early
-                }
-                else if (!HasCommonFlag(CommonInputState.InputActive) && touch.phase == TouchPhase.Began)
-                {
-                    TryStartInput(touch.fingerId, touch.position);
+                    StartInput(touch.fingerId, touch.position);
+                    break; // Only handle one new touch at a time
                 }
             }
         }
@@ -105,6 +116,7 @@ namespace Portfolio.InputSystem.Mobile
             switch (touch.phase)
             {
                 case TouchPhase.Moved:
+                case TouchPhase.Stationary:
                     if (IsLeftSideOfScreen(touch.position))
                         UpdateInput(touch.position);
                     else
@@ -118,27 +130,6 @@ namespace Portfolio.InputSystem.Mobile
             }
         }
 
-        private void TryStartInput(int touchId, Vector2 position)
-        {
-            if (IsLeftSideOfScreen(position))
-            {
-                StartInput(touchId, position);
-            }
-        }
-
-        private void VerifyActiveTouchExists()
-        {
-            // Check if active touch still exists
-            for (int i = 0; i < Input.touchCount; i++)
-            {
-                if (Input.touches[i].fingerId == activeTouchId)
-                    return; // Touch still exists
-            }
-
-            // Touch no longer exists
-            StopInput();
-        }
-
         #endregion Touch Input Processing
 
         #region Mouse Emulation (Editor Only)
@@ -148,18 +139,18 @@ namespace Portfolio.InputSystem.Mobile
             Vector2 mousePos = Input.mousePosition;
             bool isLeftSide = IsLeftSideOfScreen(mousePos);
 
-            if (Input.GetMouseButtonDown(0) && isLeftSide && !HasCommonFlag(CommonInputState.InputActive))
+            if (Input.GetMouseButtonDown(0) && isLeftSide && !isInputActive)
             {
                 StartInput(0, mousePos);
             }
-            else if (Input.GetMouseButton(0) && HasCommonFlag(CommonInputState.InputActive))
+            else if (Input.GetMouseButton(0) && isInputActive)
             {
                 if (isLeftSide)
                     UpdateInput(mousePos);
                 else
                     StopInput();
             }
-            else if (Input.GetMouseButtonUp(0) && HasCommonFlag(CommonInputState.InputActive))
+            else if (Input.GetMouseButtonUp(0) && isInputActive)
             {
                 StopInput();
             }
@@ -172,18 +163,18 @@ namespace Portfolio.InputSystem.Mobile
         private void StartInput(int touchId, Vector2 position)
         {
             activeTouchId = touchId;
-            SetCommonFlag(CommonInputState.InputActive, true);
+            isInputActive = true;
             inputStartPosition = position;
 
-            // Show joystick at touch position
-            Vector2 uiPosition = ScreenToUIPosition(position);
+            // Convert screen position to UI position using simplified method
+            Vector2 uiPosition = ScreenToUIPositionFixed(position);
             virtualJoystick?.SetJoystickPosition(uiPosition);
             virtualJoystick?.ShowJoystick(true);
         }
 
         private void UpdateInput(Vector2 currentPosition)
         {
-            if (!HasCommonFlag(CommonInputState.InputActive)) return;
+            if (!isInputActive) return;
 
             // Calculate movement vector
             Vector2 delta = currentPosition - inputStartPosition;
@@ -205,10 +196,10 @@ namespace Portfolio.InputSystem.Mobile
 
         private void StopInput()
         {
-            if (!HasCommonFlag(CommonInputState.InputActive)) return;
+            if (!isInputActive) return;
 
             activeTouchId = -1;
-            SetCommonFlag(CommonInputState.InputActive, false);
+            isInputActive = false;
             currentInput = Vector2.zero;
 
             virtualJoystick?.UpdateJoystickVisual(Vector2.zero);
@@ -221,14 +212,35 @@ namespace Portfolio.InputSystem.Mobile
             return screenPosition.x < Screen.width * SCREEN_SPLIT_RATIO;
         }
 
-        private Vector2 ScreenToUIPosition(Vector2 screenPosition)
+        // FIXED: Simplified coordinate conversion that maintains linear relationship
+        private Vector2 ScreenToUIPositionFixed(Vector2 screenPosition)
         {
             Canvas canvas = virtualJoystick?.GetCanvas();
-            Camera uiCamera = virtualJoystick?.GetCamera();
 
-            if (canvas != null)
+            if (canvas == null) return screenPosition;
+
+            RectTransform canvasRect = canvas.GetComponent<RectTransform>();
+
+            // For ScreenSpaceOverlay canvases, use direct conversion
+            if (canvas.renderMode == RenderMode.ScreenSpaceOverlay)
             {
-                RectTransform canvasRect = canvas.GetComponent<RectTransform>();
+                // Convert screen coordinates to canvas coordinates
+                // Canvas size matches screen size in ScreenSpaceOverlay
+                Vector2 canvasSize = canvasRect.sizeDelta;
+
+                // Convert screen position to canvas position
+                // Screen (0,0) is bottom-left, Canvas (0,0) is center
+                Vector2 canvasPosition = new Vector2(
+                    screenPosition.x - Screen.width * 0.5f,
+                    screenPosition.y - Screen.height * 0.5f
+                );
+
+                return canvasPosition;
+            }
+            else
+            {
+                // For camera-based canvases, use the utility method
+                Camera uiCamera = virtualJoystick?.GetCamera();
                 if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
                     canvasRect, screenPosition, uiCamera, out Vector2 localPosition))
                 {
@@ -241,43 +253,11 @@ namespace Portfolio.InputSystem.Mobile
 
         #endregion Input Management
 
-        #region State Management
-
-        private bool HasCommonFlag(CommonInputState flag)
-        {
-            return (commonState & flag) == flag;
-        }
-
-        private void SetCommonFlag(CommonInputState flag, bool value)
-        {
-            if (value)
-                commonState |= flag;
-            else
-                commonState &= ~flag;
-        }
-
-        private bool HasMovementFlag(MovementInputState flag)
-        {
-            return (movementState & flag) == flag;
-        }
-
-        private void SetMovementFlag(MovementInputState flag, bool value)
-        {
-            if (value)
-                movementState |= flag;
-            else
-                movementState &= ~flag;
-        }
-
-        private void ResetState()
-        {
-            commonState = CommonInputState.None;
-            movementState = MovementInputState.None;
-            activeTouchId = -1;
-        }
+        #region Required Interface Methods
 
         public void BlockInput(float duration)
         {
+            // Implementation if needed for boost system
         }
 
         public bool IsInputBlocked()
@@ -285,6 +265,6 @@ namespace Portfolio.InputSystem.Mobile
             return false;
         }
 
-        #endregion State Management
+        #endregion Required Interface Methods
     }
 }
