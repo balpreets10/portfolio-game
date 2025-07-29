@@ -69,8 +69,8 @@ public class GameSceneScope : MonoBehaviour, IInstaller
     private void RegisterPlatformRotationHandlers(ContainerBuilder builder)
     {
         // Register all platform input handlers
-        builder.AddTransient(typeof(PCRotationInputHandler));
-        builder.AddTransient(typeof(MobileRotationInputHandler));
+        builder.AddScoped(typeof(PCRotationInputHandler));
+        builder.AddScoped(typeof(MobileRotationInputHandler));
 
         // Register factory for platform-specific handlers
         builder.AddSingleton(typeof(PlatformRotationFactory), typeof(IPlatformRotationFactory));
@@ -79,8 +79,8 @@ public class GameSceneScope : MonoBehaviour, IInstaller
     private void RegisterPlatformMovementHandlers(ContainerBuilder builder)
     {
         // Register all platform input handlers
-        builder.AddTransient(typeof(PCMovementInputHandler));
-        builder.AddTransient(typeof(MobileMovementInputHandler));
+        builder.AddScoped(typeof(PCMovementInputHandler));
+        builder.AddScoped(typeof(MobileMovementInputHandler));
 
         // Register factory for platform-specific handlers
         builder.AddSingleton(typeof(PlatformMovementFactory), typeof(IPlatformMovementFactory));
